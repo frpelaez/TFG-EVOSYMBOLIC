@@ -314,14 +314,3 @@ def main() -> None:
     
 if __name__ == "__main__":
     main()
-    ops: Dict[str, int] = {"+":2, 
-                           "-": 2,
-                           "*": 2,
-                           "/": 2,
-                           "pow": 2,
-                           "exp": 1,
-                           "sin": 1,
-                           "cos": 1}
-    vars = sp.symbols("x0:5")
-    C = sp.Symbol("C")
-    vlist = list(vars) + [C]
