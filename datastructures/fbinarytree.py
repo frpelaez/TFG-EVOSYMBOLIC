@@ -8,7 +8,11 @@ class BT:
         self._data = data
         self._left: BT = left
         self._right: BT = right
+    
+    def size(self) -> int:
         
+        return len(self.pre_order())
+    
     def root(self) -> Any:
         
         return self._data
@@ -107,6 +111,10 @@ class BT:
                 q.enqueue(nextPair)
         
         return lst
+    
+    def copy(self) -> "BT":
+        
+        return BT(self._data, self._left, self._right)
     
     def show(self) -> None:
         
