@@ -1,6 +1,7 @@
 from typing import Any, List
 from datastructures.fqueue import Queue
 
+
 class BT:
     
     def __init__(self, data: Any = None, left: "BT" = None, right: "BT" = None) -> None:
