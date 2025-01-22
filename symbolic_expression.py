@@ -197,9 +197,9 @@ def expr_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> 
             if arity == 2:
                 arg2 = s.pop()
                 arg1 = s.pop()
-                if not s.is_empty():
-                    if not isinstance(s.top(), sp.Expr):
-                        raise Exception(f"Expected 2 arguments for operator ({elm}), but 3 or more were given")
+                # if not s.is_empty():
+                #     if not isinstance(s.top(), sp.Expr):
+                #         raise Exception(f"Expected 2 arguments for operator ({elm}), but 3 or more were given")
                 if not elm in AVALIBLE_OPS:
                     raise Exception(f"({elm}) operator has not been implemented yet")
                 if elm == "-":

@@ -25,7 +25,7 @@ def numerify_tree(tree: BT, variables: List[sp.Symbol], operators: Dict[str, int
 
 def fitness(tree: BT, data: Tuple[np.ndarray, np.ndarray], variables: List[sp.Symbol], operators: Dict[str, int],
             *,
-            method: str = "ade") -> float:
+            method: str = "mde") -> float:
     """
     Given a binary tree, calculates the fitness of the tree with respect to the data.
     """
