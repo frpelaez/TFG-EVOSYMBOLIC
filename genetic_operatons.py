@@ -1,4 +1,4 @@
-from random import random, randint, choice, choices
+from random import random, randint, choice, choices, uniform
 from typing import List, Dict, Any
 
 import sympy as sp
@@ -8,7 +8,7 @@ from symbolic_expression import tree_from_postfix, expr_from_postfix
 
 def generate_tree(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int,
                   *,
-                  current_depth: int = 1) -> BT:
+                  current_depth: int = 1, constants_range: List[float] = [-1, 1]) -> BT:
     """
     This function generates a random syntactic binary tree
 
@@ -16,6 +16,7 @@ def generate_tree(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: i
         operators (Dict[str, int])
         vars (List[sp.Symbol]): list of variables
         max_depth (int): maximum depth for the generated tree
+        constants_range (List[float]): interval for constants, default [-1, 1]
 
     Returns:
         BT
@@ -42,14 +43,17 @@ def generate_tree(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: i
         if random() < 0.75:
             node: sp.Symbol | str | float = choice(vars)
         else:
-            cte: float = round(2 * random() - 1, 4)
-            node: sp.Symbol | str | float= cte
+            start, end = constants_range
+            cte: float = round(uniform(start, end), 4)
+            node: sp.Symbol | str | float = cte
         return BT(node)
     
     return BT()
     
 
-def generate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int) -> List[BT]:
+def generate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int,
+                        *,
+                        constants_range: List[float] = [-1, 1]) -> List[BT]:
     """
     This function generates a population of random syntactic binary trees
 
@@ -58,11 +62,12 @@ def generate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_de
         vars (List[sp.Symbol]): list of variables
         max_depth (int): maximum depth for the generated trees
         population_size (int): number of trees in the population
+        constants_range (List[float]): interval for constants, default [-1, 1]
 
     Returns:
         List[BT]
     """
-    return [generate_tree(operators, vars, max_depth) for _ in range(population_size)]
+    return [generate_tree(operators, vars, max_depth, constants_range=constants_range) for _ in range(population_size)]
 
 
 def crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
@@ -128,7 +133,7 @@ def crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
   
 def mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int],
              *,
-             variant: str = "nodal", constants_range: int = 1) -> BT:
+             variant: str = "nodal", constants_range: List[float] = [-1, 1]) -> BT:
     """
     This function applies the unary 'mutation' to a syntactic binary tree and procudes a new one
 
@@ -145,7 +150,6 @@ def mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int],
     pst = tree.post_order()
     mutation_point: int = randint(0, len(pst) - 1)
     selected_node = pst[mutation_point]
-    # print("Selected point:", mutation_point, selected_node)
     
     match variant:
         case "nodal":
@@ -153,8 +157,12 @@ def mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int],
                 if random() < 0.75:
                     pst[mutation_point] = choice(vars)
                 else:
-                    cte: float = constants_range * round(2 * random() - 1, 4)
-                    pst[mutation_point] = cte
+                    start, end = constants_range
+                    cte: float = round(uniform(start, end), 4)
+                    if isinstance(pst[mutation_point], float):
+                        pst[mutation_point] += cte
+                    else:
+                        pst[mutation_point] = cte
             else:
                 assert isinstance(selected_node, str)
                 arity: int = operators[selected_node]
@@ -231,6 +239,11 @@ def selection(population: List[BT], fitness: List[float],
               method: str = "tournament", tournament_size: int = 2) -> BT:
     
     if method == "tournament":
+        selected_indices: List[int] = choices(list(range(len(population))), k=tournament_size)
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "weighted-tournament":
         max_fitness: float = max(fitness)
         min_fitness: float = min(fitness)
         weights: List[float] = [min_fitness + max_fitness - f for f in fitness]
@@ -238,7 +251,7 @@ def selection(population: List[BT], fitness: List[float],
         winner_index: int = min(selected_indices, key=lambda i: fitness[i])
         return population[winner_index]
     
-    if method == "fitness-proportional":
+    if method == "roulette":
         max_fitness: float = max(fitness)
         min_fitness: float = min(fitness)
         probabilities: List[float] = [min_fitness + max_fitness - f for f in fitness]
@@ -249,17 +262,21 @@ def selection(population: List[BT], fitness: List[float],
         winner_index: int = min(range(len(population)), key=lambda i: fitness[i])
         return population[winner_index]
     
-    raise Exception("Available selection methods are 'tournament' (by default), 'fitness-proportional' and 'elitism'")
+    raise Exception("Available selection methods are 'tournament' (by default), 'roulette' and 'elitism'")
 
 
 def evolve_population(population: List[BT], fitness: List[float], operators: Dict[str, int], vars: List[sp.Symbol],
                       *,
-                      crossover_rate: float = 0.75, mutation_rate: float = 0.1) -> List[BT]:
+                      crossover_rate: float = 0.75, mutation_rate: float = 0.1,
+                      selection_method: str = "tournament", tournament_size: int = 2,
+                      mutation_method = "nodal") -> List[BT]:
     
     new_population: List[BT] = []
     while len(new_population) < len(population):
-        parent1: BT = selection(population, fitness)
-        parent2: BT = selection(population, fitness)
+        parent1: BT = selection(population, fitness,
+                                method=selection_method, tournament_size=tournament_size)
+        parent2: BT = selection(population, fitness,
+                                method=selection_method, tournament_size=tournament_size)
         
         if random() < crossover_rate:
             offspring: BT = crossover(parent1, parent2, operators)
@@ -267,7 +284,7 @@ def evolve_population(population: List[BT], fitness: List[float], operators: Dic
             offspring: BT = parent1.copy()
         
         if random() < mutation_rate:
-            offspring = mutation(offspring, vars, operators)
+            offspring = mutation(offspring, vars, operators, variant=mutation_method)
         
         new_population.append(offspring)
 
