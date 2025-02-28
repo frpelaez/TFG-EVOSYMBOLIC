@@ -1,6 +1,5 @@
 import sys
-from typing import List, Dict, Callable, Any
-from random import random, randint, choice, choices
+from typing import List, Dict, Callable
 
 import sympy as sp
 
@@ -285,6 +284,11 @@ def expr_from_tree(tree: BT, operators: Dict[str, int]) -> sp.Expr:
         sp.Expr: reconstructed syntactic expression
     """
     return expr_from_postfix(tree.post_order(), operators)
+    
+    
+def get_variables(tree: BT) -> set[sp.Symbol]:
+    
+    return set(filter(lambda t : isinstance(t, sp.Symbol), tree.post_order()))
     
 
 def main() -> None:

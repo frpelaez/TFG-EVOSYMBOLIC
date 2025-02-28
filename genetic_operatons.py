@@ -1,7 +1,8 @@
 from random import random, randint, choice, choices, uniform
-from typing import List, Dict, Any
+from typing import List, Dict, Tuple, Any
 
 import sympy as sp
+import numpy as np
 
 from datastructures import BT
 from symbolic_expression import tree_from_postfix, expr_from_postfix
@@ -70,6 +71,25 @@ def generate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_de
     return [generate_tree(operators, vars, max_depth, constants_range=constants_range) for _ in range(population_size)]
 
 
+def Vgenerate_population(dimension: int, operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int,
+                         *,
+                         constants_range: List[float] = [-1, 1]) -> List[List[BT]]:
+    """
+    This function generates a population of random syntactic binary trees
+
+    Args:
+        operators (Dict[str, int]): dictionary of the operators present in the tree with their arity
+        vars (List[sp.Symbol]): list of variables
+        max_depth (int): maximum depth for the generated trees
+        population_size (int): number of trees in the population
+        constants_range (List[float]): interval for constants, default [-1, 1]
+
+    Returns:
+        List[BT]
+    """
+    return [[generate_tree(operators, vars, max_depth, constants_range=constants_range) for _ in range(dimension)] for _ in range(population_size)]
+
+
 def crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
     """
     This function applies the binary operation of 'crossover' to two syntactic trees and produces a new one
@@ -133,7 +153,7 @@ def crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
   
 def mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int],
              *,
-             variant: str = "nodal", constants_range: List[float] = [-1, 1]) -> BT:
+             variant: str = "nodal", constants_range: List[float] | Tuple[float, float] = [-1, 1]) -> BT:
     """
     This function applies the unary 'mutation' to a syntactic binary tree and procudes a new one
 
@@ -262,12 +282,44 @@ def selection(population: List[BT], fitness: List[float],
         winner_index: int = min(range(len(population)), key=lambda i: fitness[i])
         return population[winner_index]
     
-    raise Exception("Available selection methods are 'tournament' (by default), 'roulette' and 'elitism'")
+    raise Exception("Available selection methods are 'tournament' (by default), 'weighted-tournament', 'roulette' and 'elitism'")
+
+
+def Vselection(population: List[List[BT]], fitness: List[np.floating],
+               *,
+               method: str = "tournament", tournament_size: int = 2) -> List[BT]:
+    
+    if method == "tournament":
+        selected_indices: List[int] = choices(list(range(len(population))), k=tournament_size)
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "weighted-tournament":
+        max_fitness: np.floating = max(fitness)
+        min_fitness: np.floating = min(fitness)
+        weights: List[np.floating] = [min_fitness + max_fitness - f for f in fitness]
+        selected_indices: List[int] = choices(list(range(len(population))), weights, k=tournament_size) # type: ignore
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "roulette":
+        max_fitness: np.floating = max(fitness)
+        min_fitness: np.floating = min(fitness)
+        probabilities: List[np.floating] = [min_fitness + max_fitness - f for f in fitness]
+        selected_index: int = choices(list(range(len(population))), probabilities)[0] # type: ignore
+        return population[selected_index]
+    
+    if method == "elitism":
+        winner_index: int = min(range(len(population)), key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    raise Exception("Available selection methods are 'tournament' (by default), 'weighted-tournament', 'roulette' and 'elitism'")
 
 
 def evolve_population(population: List[BT], fitness: List[float], operators: Dict[str, int], vars: List[sp.Symbol],
                       *,
                       crossover_rate: float = 0.75, mutation_rate: float = 0.1,
+                      constants_range: List[float] | Tuple[float, float] = [-1, 1],
                       selection_method: str = "tournament", tournament_size: int = 2,
                       mutation_method = "nodal") -> List[BT]:
     
@@ -284,10 +336,40 @@ def evolve_population(population: List[BT], fitness: List[float], operators: Dic
             offspring: BT = parent1.copy()
         
         if random() < mutation_rate:
-            offspring = mutation(offspring, vars, operators, variant=mutation_method)
+            offspring = mutation(offspring, vars, operators, variant=mutation_method, constants_range=constants_range)
         
         new_population.append(offspring)
 
+    return new_population
+
+
+def Vevolve_population(population: List[List[BT]], fitness: List[np.floating], operators: Dict[str, int], vars: List[sp.Symbol],
+                       *,
+                       crossover_rate: float = 0.75, mutation_rate: float = 0.1,
+                       constants_range: List[float] | Tuple[float, float] = [-1, 1],
+                       selection_method: str = "tournament", tournament_size: int = 2,
+                       mutation_method = "nodal") -> List[List[BT]]:
+    
+    new_population: List[List[BT]] = []
+    while len(new_population) < len(population):
+        parent1: List[BT] = Vselection(population, fitness,
+                                       method=selection_method, tournament_size=tournament_size)
+        parent2: List[BT] = Vselection(population, fitness,
+                                       method=selection_method, tournament_size=tournament_size)
+        offspring: List[BT] = []
+        for i in range(len(parent1)):
+            if random() < crossover_rate:
+                offspring_component = crossover(parent1[i], parent2[i], operators)
+            else:
+                offspring_component = parent1[i].copy()
+                
+            if random() < mutation_rate:
+                offspring_component = mutation(offspring_component, vars, operators, variant=mutation_method, constants_range=constants_range)
+                
+            offspring.append(offspring_component)
+            
+        new_population.append(offspring)
+        
     return new_population
 
 

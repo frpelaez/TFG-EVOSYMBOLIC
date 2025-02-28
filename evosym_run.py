@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from matplotlib import pyplot as plt
 from typing import List, Dict, Tuple
@@ -12,7 +13,7 @@ from numerify import *
 def evosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, generations: int,
                vars: List[Symbol], operators: Dict[str, int],
                *,
-               crossover_rate: float = 0.75, mutation_rate: float = 0.1,
+               crossover_rate: float = 0.75, mutation_rate: float = 0.1, constants_range = [-1, 1],
                selection_method: str = "tournament", tournament_size: int = 2,
                mutation_method: str = "nodal", fitness_method:str = "mde", size_penalty: str = "linear") -> Tuple[BT, float, BT, float, 
                                                                                                                   int,
@@ -28,13 +29,19 @@ def evosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, genera
     generations_best_fitness: List[float] = []
     
     bar = Bar("Run progress:", max=generations)
-    for _ in range(generations):
-        fitnesses: List[float] = evaluate_population(population, data, vars, operators, method=fitness_method, size_penalty=size_penalty)
+    for i in range(generations):
+        fitnesses: List[float] = evaluate_population(population, data, vars, operators,
+                                                     method=fitness_method,
+                                                     size_penalty=size_penalty)
+        
         generations_mean_fitness.append(sum(fitnesses) / population_size)
         generations_best_fitness.append(min(fitnesses))
         population = evolve_population(population, fitnesses, operators, vars,
-                                       crossover_rate=crossover_rate, mutation_rate=mutation_rate,
-                                       selection_method=selection_method, tournament_size=tournament_size,
+                                       crossover_rate=crossover_rate,
+                                       selection_method=selection_method,
+                                       tournament_size=tournament_size,
+                                       mutation_rate=mutation_rate,
+                                       constants_range=constants_range,
                                        mutation_method=mutation_method)
         
         best_gen_tree: BT = selection(population, fitnesses, method="elitism")
@@ -42,13 +49,61 @@ def evosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, genera
         if best_gen_fitness <= best_fitness:
             best_tree: BT = best_gen_tree
             best_fitness: float = best_gen_fitness 
-            best_gen = _
+            best_gen = i
             
         bar.next()
     
     bar.finish()
     return best_tree, best_fitness, best_gen_tree, best_gen_fitness, best_gen, generations_mean_fitness, generations_best_fitness
 
+
+def Vevosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, generations: int,
+                vars: List[Symbol], operators: Dict[str, int],
+                *,
+                crossover_rate: float = 0.75, mutation_rate: float = 0.1, constants_range = [-1, 1],
+                selection_method: str = "tournament", tournament_size: int = 2,
+                mutation_method: str = "nodal", fitness_method: str = "mde", size_penalty: str = "linear") -> Tuple[List[BT], np.floating,
+                                                                                                                    List[BT], np.floating, 
+                                                                                                                    int,
+                                                                                                                    List[np.floating], List[np.floating]]:
+
+    dim = data[1].shape[1]
+    population: List[List[BT]] = Vgenerate_population(dim, operators, vars, 5, population_size)
+    best_tree = [BT() for _ in range(len(vars))]
+    best_fitness = float('inf') # type: ignore
+    best_gen_tree = [BT() for _ in range(len(vars))]
+    best_gen_fitness = float('inf') # type: ignore
+    best_gen: int = 0
+    generations_mean_fitness: List[np.floating] = []
+    generations_best_fitness: List[np.floating] = []
+    
+    bar = Bar("Run progress:", max=generations)
+    for i in range(generations):
+        fitnesses: List[np.floating] = Vevaluate_population(population, data, vars, operators, # type: ignore
+                                                            method=fitness_method,
+                                                            size_penalty=size_penalty)
+        
+        generations_mean_fitness.append(sum(fitnesses) / population_size) # type: ignore
+        generations_best_fitness.append(min(fitnesses))
+        population = Vevolve_population(population, fitnesses, operators, vars,
+                                        crossover_rate=crossover_rate,
+                                        selection_method=selection_method,
+                                        tournament_size=tournament_size,
+                                        mutation_rate=mutation_rate,
+                                        constants_range=constants_range,
+                                        mutation_method=mutation_method)
+        
+        best_gen_tree: List[BT] = Vselection(population, fitnesses, method="elitism")
+        best_gen_fitness: np.floating = Vfitness2(best_gen_tree, data, vars, operators, method="mde") # type: ignore
+        if best_gen_fitness <= best_fitness:
+            best_tree = best_gen_tree
+            best_fitness = best_gen_fitness 
+            best_gen = i
+            
+        bar.next()
+    
+    bar.finish()
+    return best_tree, best_fitness, best_gen_tree, best_gen_fitness, best_gen, generations_mean_fitness, generations_best_fitness # type: ignore
 
 def main() -> None:
     
@@ -58,30 +113,29 @@ def main() -> None:
     
     vars: List[Symbol] = [sp.Symbol('x')]
     operators: Dict[str, int] = {'+': 2, '-': 2, '*': 2}
+    constants_range = [-3, 3]
     
     population_size = 30
     generations = 100
-    crosspver_rate = 0.4
-    mutation_rate = 0.01
+    crosspver_rate = 0.5
+    mutation_rate = 0.02
     
     mutation_method = "nodal"
     slct_method = "weighted-tournament"
     trnmt_size = 4
-    size_pnlty = "linear"
+    size_pnlty = "logarithmic"
     fitness_method = "mde"
     
     best_tree, best_fitness, best_lastgen_tree, best_last_fitness, \
     best_gen, mean_fitnesses, best_fitnesses= evosym_run(data, population_size, generations, vars, operators,
-                                                                                        crossover_rate=crosspver_rate, mutation_rate=mutation_rate,
-                                                                                        selection_method=slct_method, tournament_size=trnmt_size,
-                                                                                        mutation_method=mutation_method, fitness_method=fitness_method,
+                                                                                        crossover_rate=crosspver_rate,
+                                                                                        mutation_rate=mutation_rate,
+                                                                                        mutation_method=mutation_method,
+                                                                                        constants_range=constants_range,
+                                                                                        selection_method=slct_method,
+                                                                                        tournament_size=trnmt_size,
+                                                                                        fitness_method=fitness_method,
                                                                                         size_penalty=size_pnlty)
-    
-    # print("Best tree: ")
-    # best_tree.show()
-    
-    # print("\nBest tree from last generation:")
-    # best_lastgen_tree.show()
     
     best_pst = best_tree.post_order()
     best_lastgen_pst = best_lastgen_tree.post_order()
@@ -138,9 +192,8 @@ def main() -> None:
     st_axes[1].title.set_text("Best generation fitness")
     st_axes[1].plot([gen for gen in range(generations)], best_fitnesses, label="Best fitness", color="red")
     plt.tight_layout()
-    
     plt.show()
    
    
 if __name__ == "__main__":
-    main() 
+    main()
