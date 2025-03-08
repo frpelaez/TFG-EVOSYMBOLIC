@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from matplotlib import pyplot as plt
 from typing import List, Dict, Tuple
@@ -13,11 +12,13 @@ from numerify import *
 def evosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, generations: int,
                vars: List[Symbol], operators: Dict[str, int],
                *,
-               crossover_rate: float = 0.75, mutation_rate: float = 0.1, constants_range = [-1, 1],
-               selection_method: str = "tournament", tournament_size: int = 2,
-               mutation_method: str = "nodal", fitness_method:str = "mde", size_penalty: str = "linear") -> Tuple[BT, float, BT, float, 
-                                                                                                                  int,
-                                                                                                                  List[float], List[float]]:
+               crossover_rate: float = 0.75, meancrossover_rate: float = 0.5,
+               mutation_rate: float = 0.1, divine_mutation_rate = 0.1,
+               mutation_method: str = "nodal", fitness_method:str = "mde",
+               constants_range = [-1, 1], selection_method: str = "tournament",
+               tournament_size: int = 2, size_penalty: str = "linear") -> Tuple[BT, float, BT, float, 
+                                                                               int,
+                                                                               List[float], List[float]]:
     
     population: List[BT] = generate_population(operators, vars, 5, population_size)
     best_tree = BT()
@@ -37,15 +38,18 @@ def evosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, genera
         generations_mean_fitness.append(sum(fitnesses) / population_size)
         generations_best_fitness.append(min(fitnesses))
         population = evolve_population(population, fitnesses, operators, vars,
+                                       data,
                                        crossover_rate=crossover_rate,
+                                       meancrossover_rate=meancrossover_rate,
                                        selection_method=selection_method,
                                        tournament_size=tournament_size,
                                        mutation_rate=mutation_rate,
+                                       divine_mutation_rate=divine_mutation_rate,
                                        constants_range=constants_range,
                                        mutation_method=mutation_method)
         
         best_gen_tree: BT = selection(population, fitnesses, method="elitism")
-        best_gen_fitness: float = fitness(best_gen_tree, data, vars, operators, method="mde")
+        best_gen_fitness: float = fitness(best_gen_tree, data, vars, operators, method="mde", size_penalty=size_penalty)
         if best_gen_fitness <= best_fitness:
             best_tree: BT = best_gen_tree
             best_fitness: float = best_gen_fitness 
@@ -94,7 +98,7 @@ def Vevosym_run(data: Tuple[np.ndarray, np.ndarray], population_size: int, gener
                                         mutation_method=mutation_method)
         
         best_gen_tree: List[BT] = Vselection(population, fitnesses, method="elitism")
-        best_gen_fitness: np.floating = Vfitness2(best_gen_tree, data, vars, operators, method="mde") # type: ignore
+        best_gen_fitness: np.floating = Vfitness2(best_gen_tree, data, vars, operators, method="mde", size_penalty=size_penalty) # type: ignore
         if best_gen_fitness <= best_fitness:
             best_tree = best_gen_tree
             best_fitness = best_gen_fitness 
@@ -118,31 +122,39 @@ def main() -> None:
     population_size = 30
     generations = 100
     crosspver_rate = 0.5
+    meancrossover_rate = 0.1
     mutation_rate = 0.02
+    divine_mutation_rate = 0.05
     
     mutation_method = "nodal"
     slct_method = "weighted-tournament"
     trnmt_size = 4
-    size_pnlty = "logarithmic"
+    size_pnlty = "sqrt"
     fitness_method = "mde"
     
-    best_tree, best_fitness, best_lastgen_tree, best_last_fitness, \
-    best_gen, mean_fitnesses, best_fitnesses= evosym_run(data, population_size, generations, vars, operators,
-                                                                                        crossover_rate=crosspver_rate,
-                                                                                        mutation_rate=mutation_rate,
-                                                                                        mutation_method=mutation_method,
-                                                                                        constants_range=constants_range,
-                                                                                        selection_method=slct_method,
-                                                                                        tournament_size=trnmt_size,
-                                                                                        fitness_method=fitness_method,
-                                                                                        size_penalty=size_pnlty)
+    best_tree, best_fitness, \
+    best_lastgen_tree, best_last_fitness, \
+    best_gen, \
+    mean_fitnesses, best_fitnesses= evosym_run(data, population_size, generations, vars, operators,
+                                                                         crossover_rate=crosspver_rate,
+                                                                         meancrossover_rate=meancrossover_rate,
+                                                                         mutation_rate=mutation_rate,
+                                                                         mutation_method=mutation_method,
+                                                                         divine_mutation_rate=divine_mutation_rate,
+                                                                         constants_range=constants_range,
+                                                                         selection_method=slct_method,
+                                                                         tournament_size=trnmt_size,
+                                                                         fitness_method=fitness_method,
+                                                                         size_penalty=size_pnlty)
     
     best_pst = best_tree.post_order()
     best_lastgen_pst = best_lastgen_tree.post_order()
     
-    parameters = {"pop_size":population_size, "gen_number":generations, "crossover_rate":crosspver_rate, "mutation_rate":mutation_rate,
-                                  "sel_method":slct_method, "tournament_size":trnmt_size, "mutation_method":mutation_method, "fitness_method":fitness_method,
-                                  "size_penalty":size_pnlty}
+    parameters = {"pop_size":population_size, "gen_number":generations,
+                                  "crossover_rate":crosspver_rate, "meancrossover_rate":meancrossover_rate,
+                                  "mutation_rate":mutation_rate, "mutation_method":mutation_method, "divine_mutation_rate": divine_mutation_rate,
+                                  "sel_method":slct_method, "tournament_size":trnmt_size,
+                                  "fitness_method":fitness_method, "size_penalty":size_pnlty}
     
     print("\n---------------------------------------", end="\n\n")
     

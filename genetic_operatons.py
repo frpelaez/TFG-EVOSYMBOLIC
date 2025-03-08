@@ -5,7 +5,9 @@ import sympy as sp
 import numpy as np
 
 from datastructures import BT
+from individual import Individual
 from symbolic_expression import tree_from_postfix, expr_from_postfix
+from numerify import numerify_tree
 
 def generate_tree(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int,
                   *,
@@ -50,7 +52,14 @@ def generate_tree(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: i
         return BT(node)
     
     return BT()
+
+
+def generate_individual(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int,
+                        *,
+                        constants_range: List[float] = [-1, 1]) -> Individual:
     
+    return Individual(generate_tree(operators, vars, max_depth, constants_range=constants_range), float("inf"))
+  
 
 def generate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int,
                         *,
@@ -71,6 +80,13 @@ def generate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_de
     return [generate_tree(operators, vars, max_depth, constants_range=constants_range) for _ in range(population_size)]
 
 
+def Igenerate_population(operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int,
+                         *,
+                         constants_range: List[float] = [-1, 1]) -> List[Individual]:
+    
+    return [generate_individual(operators, vars, max_depth, constants_range=constants_range) for _ in range(population_size)]
+
+
 def Vgenerate_population(dimension: int, operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int,
                          *,
                          constants_range: List[float] = [-1, 1]) -> List[List[BT]]:
@@ -87,7 +103,16 @@ def Vgenerate_population(dimension: int, operators: Dict[str, int], vars: List[s
     Returns:
         List[BT]
     """
-    return [[generate_tree(operators, vars, max_depth, constants_range=constants_range) for _ in range(dimension)] for _ in range(population_size)]
+    return [[generate_tree(operators, vars, max_depth, constants_range=constants_range) for _ in range(dimension)]
+            for _ in range(population_size)]
+
+
+def IVgenerate_population(dimension: int, operators: Dict[str, int], vars: List[sp.Symbol], max_depth: int, population_size: int,
+                          *,
+                          constants_range: List[float] = [-1, 1]) -> List[List[Individual]]:
+    
+    return [[generate_individual(operators, vars, max_depth, constants_range=constants_range) for _ in range(dimension)]
+            for _ in range(population_size)]
 
 
 def crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
@@ -150,7 +175,28 @@ def crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
     
     return tree_from_postfix(offspring_pst, operators)
 
-  
+
+def Icrossover(ind1: Individual, ind2: Individual, operators: Dict[str, int]) -> Individual:
+    
+    return Individual(crossover(ind1.tree, ind2.tree, operators), min(ind1.parent_fitness, ind2.parent_fitness))
+
+
+def mean_crossover(tree1: BT, tree2: BT, operators: Dict[str, int]) -> BT:
+    
+    if not "+" in operators and not "*" in operators:
+        raise ValueError("The mean crossover operation requieres both '+' and '*' operators")
+    
+    sum_tree = BT("+", tree1, tree2)
+    mean_tree = BT("*", BT(0.5), sum_tree)
+    
+    return mean_tree
+
+
+def Imean_crossover(ind1: Individual, ind2: Individual, operators: Dict[str, int]) -> Individual:
+    
+    return Individual(mean_crossover(ind1.tree, ind2.tree, operators), min(ind1.parent_fitness, ind2.parent_fitness))
+
+
 def mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int],
              *,
              variant: str = "nodal", constants_range: List[float] | Tuple[float, float] = [-1, 1]) -> BT:
@@ -252,7 +298,34 @@ def mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int],
         
         case _:
             raise Exception("Avalible mutation variants are 'nodal' (by default), 'complete' and 'shrinking'")
-        
+
+
+def Imutation(ind: Individual, vars: List[sp.Symbol], operators: Dict[str, int],
+              *,
+              variant: str = "nodal", constants_range: List[float] | Tuple[float, float] = [-1, 1]) -> Individual:
+    
+    return Individual(mutation(ind.tree, vars, operators, variant=variant, constants_range=constants_range), ind.parent_fitness)
+
+
+def divine_mutation(tree: BT, vars: List[sp.Symbol], operators: Dict[str, int], data: Tuple[np.ndarray, np.ndarray]) -> BT:
+    
+    if not "+" in operators:
+        raise ValueError("The divine mutation operation requires the '+' operator")
+    
+    t, x = data
+    func = numerify_tree(tree, vars, operators)
+    x_pred = func(t)
+    difference = x - x_pred
+    mean_difference = float(np.mean(difference))
+    new_tree = BT("+", tree, BT(mean_difference))
+    
+    return new_tree
+
+
+def Idivine_mutation(ind: Individual, vars: List[sp.Symbol], operators: Dict[str, int], data: Tuple[np.ndarray, np.ndarray]) -> Individual:
+
+    return Individual(divine_mutation(ind.tree, vars, operators, data), ind.parent_fitness)
+
 
 def selection(population: List[BT], fitness: List[float],
               *,
@@ -274,8 +347,39 @@ def selection(population: List[BT], fitness: List[float],
     if method == "roulette":
         max_fitness: float = max(fitness)
         min_fitness: float = min(fitness)
-        probabilities: List[float] = [min_fitness + max_fitness - f for f in fitness]
-        selected_index: int = choices(list(range(len(population))), probabilities)[0]
+        weights: List[float] = [min_fitness + max_fitness - f for f in fitness]
+        selected_index: int = choices(list(range(len(population))), weights)[0]
+        return population[selected_index]
+    
+    if method == "elitism":
+        winner_index: int = min(range(len(population)), key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    raise Exception("Available selection methods are 'tournament' (by default), 'weighted-tournament', 'roulette' and 'elitism'")
+
+
+def Iselection(population: List[Individual], fitness: List[float],
+               *,
+               method: str = "tournament", tournament_size: int = 2) -> Individual:
+    
+    if method == "tournament":
+        selected_indices: List[int] = choices(list(range(len(population))), k=tournament_size)
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "weighted-tournament":
+        max_fitness: float = max(fitness)
+        min_fitness: float = min(fitness)
+        weights: List[float] = [min_fitness + max_fitness - f for f in fitness]
+        selected_indices: List[int] = choices(list(range(len(population))), weights, k=tournament_size)
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "roulette":
+        max_fitness: float = max(fitness)
+        min_fitness: float = min(fitness)
+        weights: List[float] = [min_fitness + max_fitness - f for f in fitness]
+        selected_index: int = choices(list(range(len(population))), weights)[0]
         return population[selected_index]
     
     if method == "elitism":
@@ -316,12 +420,45 @@ def Vselection(population: List[List[BT]], fitness: List[np.floating],
     raise Exception("Available selection methods are 'tournament' (by default), 'weighted-tournament', 'roulette' and 'elitism'")
 
 
-def evolve_population(population: List[BT], fitness: List[float], operators: Dict[str, int], vars: List[sp.Symbol],
+def IVselection(population: List[List[Individual]], fitness: List[np.floating],
+               *,
+               method: str = "tournament", tournament_size: int = 2) -> List[Individual]:
+    
+    if method == "tournament":
+        selected_indices: List[int] = choices(list(range(len(population))), k=tournament_size)
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "weighted-tournament":
+        max_fitness: np.floating = max(fitness)
+        min_fitness: np.floating = min(fitness)
+        weights: List[np.floating] = [min_fitness + max_fitness - f for f in fitness]
+        selected_indices: List[int] = choices(list(range(len(population))), weights, k=tournament_size) # type: ignore
+        winner_index: int = min(selected_indices, key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    if method == "roulette":
+        max_fitness: np.floating = max(fitness)
+        min_fitness: np.floating = min(fitness)
+        probabilities: List[np.floating] = [min_fitness + max_fitness - f for f in fitness]
+        selected_index: int = choices(list(range(len(population))), probabilities)[0] # type: ignore
+        return population[selected_index]
+    
+    if method == "elitism":
+        winner_index: int = min(range(len(population)), key=lambda i: fitness[i])
+        return population[winner_index]
+    
+    raise Exception("Available selection methods are 'tournament' (by default), 'weighted-tournament', 'roulette' and 'elitism'")
+
+
+def evolve_population(population: List[BT], fitness: List[float],
+                      operators: Dict[str, int], vars: List[sp.Symbol],
+                      data: Tuple[np.ndarray, np.ndarray],
                       *,
-                      crossover_rate: float = 0.75, mutation_rate: float = 0.1,
-                      constants_range: List[float] | Tuple[float, float] = [-1, 1],
-                      selection_method: str = "tournament", tournament_size: int = 2,
-                      mutation_method = "nodal") -> List[BT]:
+                      crossover_rate: float = 0.75, meancrossover_rate: float = 0.2,
+                      mutation_rate: float = 0.1, divine_mutation_rate = 0.1,
+                      mutation_method = "nodal", constants_range: List[float] | Tuple[float, float] = [-1, 1],
+                      selection_method: str = "tournament", tournament_size: int = 2) -> List[BT]:
     
     new_population: List[BT] = []
     while len(new_population) < len(population):
@@ -331,21 +468,65 @@ def evolve_population(population: List[BT], fitness: List[float], operators: Dic
                                 method=selection_method, tournament_size=tournament_size)
         
         if random() < crossover_rate:
-            offspring: BT = crossover(parent1, parent2, operators)
+            if random() < meancrossover_rate:
+                offspring: BT = mean_crossover(parent1, parent2, operators)
+            else:
+                offspring: BT = crossover(parent1, parent2, operators)
         else:
             offspring: BT = parent1.copy()
         
         if random() < mutation_rate:
-            offspring = mutation(offspring, vars, operators, variant=mutation_method, constants_range=constants_range)
+            if random() < divine_mutation_rate:
+                offspring: BT = divine_mutation(offspring, vars, operators, data)
+            else:
+                offspring: BT = mutation(offspring, vars, operators, variant=mutation_method, constants_range=constants_range)
         
         new_population.append(offspring)
 
     return new_population
 
 
-def Vevolve_population(population: List[List[BT]], fitness: List[np.floating], operators: Dict[str, int], vars: List[sp.Symbol],
+def Ievolve_population(population: List[Individual], fitness: List[float],
+                      operators: Dict[str, int], vars: List[sp.Symbol],
+                      data: Tuple[np.ndarray, np.ndarray],
+                      *,
+                      crossover_rate: float = 0.75, meancrossover_rate: float = 0.2,
+                      mutation_rate: float = 0.1, divine_mutation_rate: float = 0.1,
+                      mutation_method = "nodal", constants_range: List[float] | Tuple[float, float] = [-1, 1],
+                      selection_method: str = "tournament", tournament_size: int = 2) -> List[Individual]:
+    
+    new_population: List[Individual] = []
+    while len(new_population) < len(population):
+        parent1: Individual = Iselection(population, fitness,
+                                method=selection_method, tournament_size=tournament_size)
+        parent2: Individual = Iselection(population, fitness,
+                                method=selection_method, tournament_size=tournament_size)
+        
+        if random() < crossover_rate:
+            if random() < meancrossover_rate:
+                offspring = Imean_crossover(parent1, parent2, operators)
+            else:
+                offspring = Icrossover(parent1, parent2, operators)
+        else:
+            offspring = parent1.copy()
+        
+        if random() < mutation_rate:
+            if random() < divine_mutation_rate:
+                offspring = Idivine_mutation(offspring, vars, operators, data)
+            else:
+                offspring = Imutation(offspring, vars, operators, variant=mutation_method, constants_range=constants_range)
+        
+        new_population.append(offspring)
+
+    return new_population
+
+
+def Vevolve_population(population: List[List[BT]], fitness: List[np.floating],
+                       operators: Dict[str, int], vars: List[sp.Symbol],
+                       data: Tuple[np.ndarray, np.ndarray] | None = None,
                        *,
-                       crossover_rate: float = 0.75, mutation_rate: float = 0.1,
+                       crossover_rate: float = 0.75, meancrossover_rate: float = 0.2,
+                       mutation_rate: float = 0.1, divine_mutation_rate: float = 0.0,
                        constants_range: List[float] | Tuple[float, float] = [-1, 1],
                        selection_method: str = "tournament", tournament_size: int = 2,
                        mutation_method = "nodal") -> List[List[BT]]:
@@ -359,12 +540,57 @@ def Vevolve_population(population: List[List[BT]], fitness: List[np.floating], o
         offspring: List[BT] = []
         for i in range(len(parent1)):
             if random() < crossover_rate:
-                offspring_component = crossover(parent1[i], parent2[i], operators)
+                if random() < meancrossover_rate:
+                    offspring_component = mean_crossover(parent1[i], parent2[i], operators)
+                else:
+                    offspring_component = crossover(parent1[i], parent2[i], operators)
             else:
                 offspring_component = parent1[i].copy()
                 
             if random() < mutation_rate:
-                offspring_component = mutation(offspring_component, vars, operators, variant=mutation_method, constants_range=constants_range)
+                if data and random() < divine_mutation_rate:
+                    offspring_component = divine_mutation(offspring_component, vars, operators, data)
+                else:
+                    offspring_component = mutation(offspring_component, vars, operators, variant=mutation_method, constants_range=constants_range)
+                
+            offspring.append(offspring_component)
+            
+        new_population.append(offspring)
+        
+    return new_population
+
+
+def IVevolve_population(population: List[List[Individual]], fitness: List[np.floating],
+                       operators: Dict[str, int], vars: List[sp.Symbol],
+                       data: Tuple[np.ndarray, np.ndarray],
+                       *,
+                       crossover_rate: float = 0.75, meancrossover_rate: float = 0.2,
+                       mutation_rate: float = 0.1, divine_mutation_rate: float = 0.0,
+                       constants_range: List[float] | Tuple[float, float] = [-1, 1],
+                       selection_method: str = "tournament", tournament_size: int = 2,
+                       mutation_method = "nodal") -> List[List[Individual]]:
+    
+    new_population: List[List[Individual]] = []
+    while len(new_population) < len(population):
+        parent1: List[Individual] = IVselection(population, fitness,
+                                                method=selection_method, tournament_size=tournament_size)
+        parent2: List[Individual] = IVselection(population, fitness,
+                                                method=selection_method, tournament_size=tournament_size)
+        offspring: List[Individual] = []
+        for i in range(len(parent1)):
+            if random() < crossover_rate:
+                if random() < meancrossover_rate:
+                    offspring_component = Imean_crossover(parent1[i], parent2[i], operators)
+                else:
+                    offspring_component = Icrossover(parent1[i], parent2[i], operators)
+            else:
+                offspring_component = parent1[i].copy()
+                
+            if random() < mutation_rate:
+                if data and random() < divine_mutation_rate:
+                    offspring_component = Idivine_mutation(offspring_component, vars, operators, data)
+                else:
+                    offspring_component = Imutation(offspring_component, vars, operators, variant=mutation_method, constants_range=constants_range)
                 
             offspring.append(offspring_component)
             
@@ -445,4 +671,23 @@ def main() -> None:
     print(expr_from_postfix(offspring_pst, ops))
     
 if __name__ == "__main__":
-    main()
+    # main()
+    t1 = generate_tree({"+":2, "*":2}, [sp.Symbol("x")], 4)
+    t2 = generate_tree({"+":2, "*":2}, [sp.Symbol("x")], 4)
+    print("Tree 1:")
+    t1.show()
+    print("Tree 2")
+    t2.show()
+    
+    mean_tree = mean_crossover(t1, t2, {"+":2, "*":2})
+    print("Mean tree")
+    mean_tree.show()
+    
+    t3 = generate_tree({"+":2, "*":2}, [sp.Symbol("x")], 4)
+    print("Tree 3:")
+    t3.show()
+    
+    data = (np.array([.0, .5, 1., 1.5, 2.]), 2 + np.array([.0, .5, 1., 1.5, 2.]))
+    t3m = divine_mutation(t3, [sp.Symbol("x")], {"+":2, "*":2}, data)
+    print("Tree after divine mutation:")
+    t3m.show()

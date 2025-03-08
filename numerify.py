@@ -3,7 +3,6 @@ import numpy as np
 
 from typing import List, Dict, Tuple, Callable
 from itertools import starmap
-from matplotlib import pyplot as plt
 
 from datastructures import BT
 from symbolic_expression import expr_from_tree
@@ -66,19 +65,20 @@ def fitness(tree: BT, data: Tuple[np.ndarray, np.ndarray],
         case "lienar":
             res += tree_size / sample_size
             
-        case "cuadratic":
+        case "cuad":
             res += tree_size * tree_size / sample_size
             
         case "sqrt":
             res += np.sqrt(tree_size) / sample_size
             
-        case "logarithmic":
+        case "log":
             res += np.log2(tree_size) / sample_size
             
     return res
 
 
-def Vfitness(trees: List[BT], data: Tuple[np.ndarray, np.ndarray], variables: List[sp.Symbol], operators: Dict[str, int],
+def Vfitness(trees: List[BT], data: Tuple[np.ndarray, np.ndarray],
+             variables: List[sp.Symbol], operators: Dict[str, int],
              *,
              method: str = "mde", size_penalty: str = "linear") -> np.floating | float:
     """
@@ -145,13 +145,14 @@ def Vfitness(trees: List[BT], data: Tuple[np.ndarray, np.ndarray], variables: Li
         case "linear":
             res += np.mean(tree_sizes) / (sample_size)
             
-        case "cuadratic":
+        case "cuad":
             res += np.mean(tree_sizes) ** 2 / (sample_size)
     
     return res # type: ignore
 
 
-def Vfitness2(individual: List[BT], data: Tuple[np.ndarray, np.ndarray], variables: List[sp.Symbol], operators: Dict[str, int],
+def Vfitness2(individual: List[BT], data: Tuple[np.ndarray, np.ndarray],
+              variables: List[sp.Symbol], operators: Dict[str, int],
               *,
               method: str = "mde", size_penalty: str = "linear") -> np.floating | float:
     """
@@ -192,7 +193,8 @@ def Vfitness2(individual: List[BT], data: Tuple[np.ndarray, np.ndarray], variabl
     return components_fitnesses.sum()
 
 
-def numerify_population(population: List[BT], variables: List[sp.Symbol], operators: Dict[str, int]) -> List[Callable]:
+def numerify_population(population: List[BT],
+                        variables: List[sp.Symbol], operators: Dict[str, int]) -> List[Callable]:
     """
     Given a population of binary trees, converts them into a list of lambda-generated functions for numpy.
     """
@@ -240,5 +242,4 @@ def main() -> None:
     print(Vfitness(sys, data, vars, ops))
 
 if __name__ == "__main__":
-    # main()
-    _ = 1
+    main()
