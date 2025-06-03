@@ -1,2 +1,3 @@
 # TFG-EVOSYMBOLIC
-Framework para la aplicación de algoritmos genéticos al problema de la regresión simbólica
+
+Implementación completa de algoritmos genéticos para el problema de regresión simbólica en una varaible.
