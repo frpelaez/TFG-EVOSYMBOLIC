@@ -1,5 +1,5 @@
 import sys
-from typing import List, Dict, Callable
+from typing import Callable, Dict, List
 
 import sympy as sp
 
@@ -7,18 +7,22 @@ from datastructures import BT, Stack
 
 sys.setrecursionlimit(10**6)
 
-AVALIBLE_OPS: Dict[str, Callable] = {"+": sp.Add,
-                                    "-": sp.Add,
-                                    "*": sp.Mul,
-                                    "/": sp.Mul,
-                                    "pow": sp.Pow,
-                                    "exp": sp.exp,
-                                    "log": sp.log,
-                                    "sin": sp.sin,
-                                    "cos": sp.cos}
+AVALIBLE_OPS: Dict[str, Callable] = {
+    "+": sp.Add,
+    "-": sp.Add,
+    "*": sp.Mul,
+    "/": sp.Mul,
+    "pow": sp.Pow,
+    "exp": sp.exp,
+    "log": sp.log,
+    "sin": sp.sin,
+    "cos": sp.cos,
+}
 
 
-def tree_from_postfix(traversal: List[sp.Symbol | str], operators: Dict[str, int]) -> BT:
+def tree_from_postfix(
+    traversal: List[sp.Symbol | str], operators: Dict[str, int]
+) -> BT:
     """
     This function reconstructs a syntactic binary tree from its postorder traversal
 
@@ -31,42 +35,43 @@ def tree_from_postfix(traversal: List[sp.Symbol | str], operators: Dict[str, int
     """
     s = Stack()
     subtrees = []
-    
-    if len(traversal) == 1 :
+
+    if len(traversal) == 1:
         if not isinstance(traversal[0], (sp.Expr, float)):
-            raise Exception("Singleton post-fix notations must be of type 'sp.Expr' or 'float'")
+            raise Exception(
+                "Singleton post-fix notations must be of type 'sp.Expr' or 'float'"
+            )
         return BT(traversal[0])
-    
+
     for elm in traversal:
         if isinstance(elm, (sp.Expr, float)):
             s.put(elm)
-            
+
         if isinstance(elm, str):
-            if not elm in operators.keys():
+            if elm not in operators:
                 raise Exception(f"Found an unexpected operator -> ({elm})")
-            
+
             arity: int = operators[elm]
-            if arity >= 3: 
+            if arity >= 3:
                 raise Exception("Maximum supported arity is currently 2")
             if s.size() < arity:
-                raise Exception(f"Operator ({elm}) expected to have arity {arity}, but {s.size()} argument(s) were passed to it")
-            
+                raise Exception(
+                    f"Operator ({elm}) expected to have arity {arity}, but {s.size()} argument(s) were passed to it"
+                )
+
             if arity == 1:
                 arg = s.pop()
-                # if not s.is_empty():
-                #     if not isinstance(s.top(), BT):
-                #         raise Exception(f"Expected 1 argument for operator ({elm}), but 2 or more were given")
                 if isinstance(arg, BT):
                     node = BT(elm, arg)
                 else:
                     node = BT(elm, BT(arg))
                 s.put(node)
                 subtrees.append(node)
-                
+
             if arity == 2:
                 arg2 = s.pop()
                 arg1 = s.pop()
-                
+
                 if not isinstance(arg1, BT) and not isinstance(arg2, BT):
                     node = BT(elm, BT(arg1), BT(arg2))
                 else:
@@ -79,11 +84,16 @@ def tree_from_postfix(traversal: List[sp.Symbol | str], operators: Dict[str, int
                             node = BT(elm, arg1, arg2)
                 s.put(node)
                 subtrees.append(node)
-            
+
+    if len(subtrees) == 0:
+        print("\n", traversal)
+
     return subtrees[-1]
 
 
-def trees_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> List[BT]:
+def trees_from_postfix(
+    lst: List[sp.Symbol | str], operators: Dict[str, int]
+) -> List[BT]:
     """
     This function reconstructs all subtrees of a syntactic binary tree from its postorder traversal
 
@@ -96,27 +106,31 @@ def trees_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) ->
     """
     s = Stack()
     subtrees = []
-    
-    if len(lst) == 1 :
+
+    if len(lst) == 1:
         if isinstance(lst[0], str):
-            raise Exception("Singleton post-fix notations must be of type 'sp.Expr' or 'float'")
+            raise Exception(
+                "Singleton post-fix notations must be of type 'sp.Expr' or 'float'"
+            )
         return [BT(lst[0])]
-    
+
     for elm in lst:
         print(elm)
         if isinstance(elm, (sp.Expr, float)):
             s.put(elm)
-            
+
         if isinstance(elm, str):
-            if not elm in operators.keys():
+            if elm not in operators.keys():
                 raise Exception(f"Found an unexpected operator -> ({elm})")
-            
+
             arity: int = operators[elm]
-            if arity >= 3: 
+            if arity >= 3:
                 raise Exception("Maximum arity supported is currently 2")
             if s.size() < arity:
-                raise Exception(f"Operator ({elm}) expected to have arity {arity}, but {s.size()} argument(s) were passed to it")
-            
+                raise Exception(
+                    f"Operator ({elm}) expected to have arity {arity}, but {s.size()} argument(s) were passed to it"
+                )
+
             if arity == 1:
                 arg = s.pop()
                 # if not s.is_empty():
@@ -128,7 +142,7 @@ def trees_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) ->
                     node = BT(elm, BT(arg))
                 s.put(node)
                 subtrees.append(node)
-                
+
             if arity == 2:
                 arg2 = s.pop()
                 arg1 = s.pop()
@@ -145,7 +159,7 @@ def trees_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) ->
                             node = BT(elm, arg1, arg2)
                 s.put(node)
                 subtrees.append(node)
-            
+
     return subtrees
 
 
@@ -162,44 +176,48 @@ def expr_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> 
     """
     s = Stack()
     subexpressions = []
-    
+
     if len(lst) == 1:
         if isinstance(lst[0], str):
-            raise Exception("Singleton post-fix notations must be of type 'sp.Expr' or 'float")
+            raise Exception(
+                "Singleton post-fix notations must be of type 'sp.Expr' or 'float"
+            )
         return lst[0]
-    
+
     for elm in lst:
-        if isinstance(elm, (sp.Expr, float)):
+        if isinstance(elm, (sp.Expr, float, int)):
             s.put(elm)
-            
+
         if isinstance(elm, str):
-            if not elm in operators.keys():
+            if elm not in operators.keys():
                 raise Exception(f"Found an unexpected operator -> ({elm})")
-            
+
             arity: int = operators[elm]
-            if arity >= 3: 
+            if arity >= 3:
                 raise Exception("Maximum arity supported is currently 2")
             if s.size() < arity:
-                raise Exception(f"Operator ({elm}) expected to have arity {arity}, but {s.size()} argument(s) were passed to it")
-            
+                raise Exception(
+                    f"Operator ({elm}) expected to have arity {arity}, but {s.size()} argument(s) were passed to it"
+                )
+
             if arity == 1:
                 arg = s.pop()
                 # if not s.is_empty():
                 #     if not isinstance(s.top(), sp.Expr):
                 #         raise Exception(f"Expected 1 argument for operator ({elm}), but 2 or more were given")
-                if not elm in AVALIBLE_OPS:
+                if elm not in AVALIBLE_OPS:
                     raise Exception(f"({elm}) operator has not been implemented yet")
                 expr = AVALIBLE_OPS[elm](arg)
                 s.put(expr)
                 subexpressions.append(expr)
-                
+
             if arity == 2:
                 arg2 = s.pop()
                 arg1 = s.pop()
                 # if not s.is_empty():
                 #     if not isinstance(s.top(), sp.Expr):
                 #         raise Exception(f"Expected 2 arguments for operator ({elm}), but 3 or more were given")
-                if not elm in AVALIBLE_OPS:
+                if elm not in AVALIBLE_OPS:
                     raise Exception(f"({elm}) operator has not been implemented yet")
                 if elm == "-":
                     expr = sp.Add(arg1, -arg2)
@@ -209,11 +227,13 @@ def expr_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> 
                     expr = AVALIBLE_OPS[elm](arg1, arg2)
                 s.put(expr)
                 subexpressions.append(expr)
-    
+
     return subexpressions[-1]
 
 
-def exprs_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> List[sp.Expr]:
+def exprs_from_postfix(
+    lst: List[sp.Symbol | str], operators: Dict[str, int]
+) -> List[sp.Expr]:
     """
     This function reconstructs the syntactic subexpressions from the postorder traversal of one of its representing binary trees
 
@@ -226,39 +246,43 @@ def exprs_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) ->
     """
     s = Stack()
     subexpressions = []
-    
+
     for elm in lst:
         if isinstance(elm, (sp.Expr, float)):
             s.put(elm)
-            
+
         if isinstance(elm, str):
-            if not elm in operators.keys():
+            if elm not in operators.keys():
                 raise Exception(f"Found an unexpected operator -> ({elm})")
-            
+
             arity: int = operators[elm]
-            if arity >= 3: 
+            if arity >= 3:
                 raise Exception("Maximum arity supported is currently 2")
             if s.size() < arity:
-                raise Exception(f"Operator({elm}) expected to have arity ({elm}), but {s.size()} argument(s) were passed to it")
-            
+                raise Exception(
+                    f"Operator({elm}) expected to have arity ({elm}), but {s.size()} argument(s) were passed to it"
+                )
+
             if arity == 1:
                 arg = s.pop()
                 # if not s.is_empty():
                 #     if not isinstance(s.top(), sp.Expr):
                 #         raise Exception(f"Expected 1 argument for operator ({elm}), but 2 or more were given")
-                if not elm in AVALIBLE_OPS:
+                if elm not in AVALIBLE_OPS:
                     raise Exception(f"({elm}) operator has not been implemented yet")
                 expr = AVALIBLE_OPS[elm](arg)
                 s.put(expr)
                 subexpressions.append(expr)
-                
+
             if arity == 2:
                 arg2 = s.pop()
                 arg1 = s.pop()
                 if not s.is_empty():
                     if not isinstance(s.top(), sp.Expr):
-                        raise Exception(f"Expected 2 arguments for operator ({elm}), but 3 or more were given")
-                if not elm in AVALIBLE_OPS:
+                        raise Exception(
+                            f"Expected 2 arguments for operator ({elm}), but 3 or more were given"
+                        )
+                if elm not in AVALIBLE_OPS:
                     raise Exception(f"({elm}) operator has not been implemented yet")
                 if elm == "-":
                     expr = sp.Add(arg1, -arg2)
@@ -268,7 +292,7 @@ def exprs_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) ->
                     expr = AVALIBLE_OPS[elm](arg1, arg2)
                 s.put(expr)
                 subexpressions.append(expr)
-    
+
     return subexpressions
 
 
@@ -284,70 +308,7 @@ def expr_from_tree(tree: BT, operators: Dict[str, int]) -> sp.Expr:
         sp.Expr: reconstructed syntactic expression
     """
     return expr_from_postfix(tree.post_order(), operators)
-    
-    
+
+
 def get_variables(tree: BT) -> set[sp.Symbol]:
-    
-    return set(filter(lambda t : isinstance(t, sp.Symbol), tree.post_order()))
-    
-
-def main() -> None:
-    
-    vars = sp.symbols("x0:5")
-    vars_list = list(vars)
-    x0, x1, x2, x3, x4 = vars
-    C = sp.Symbol("C")
-    vars_list.append(C)
-    print("Using variables:", vars_list)
-    
-    ops: Dict[str, int] = {"+":2, 
-                           "-": 2,
-                           "*": 2,
-                           "/": 2,
-                           "pow": 2,
-                           "exp": 1,
-                           "log": 1,
-                           "sin": 1,
-                           "cos": 1}
-    print("Operators dictionary (name, arity)", ops)
-    
-    t = BT("+",
-          BT("-",
-                BT("exp",
-                      BT(x1)),
-                BT("pow",
-                      BT(x0),
-                      BT("/",
-                            BT(C),
-                            BT(x3)))),
-                      
-          BT("*",
-                BT(C),
-                BT(x4)))
-    print("Tree:")
-    t.show()
-    print("\nIt has a total of", t.size(), "nodes")
-
-    print("\nPostfix of t:", t.post_order(), sep="\n")
-    print("\nReconstruction of tree from postfix notation:")
-    rt: BT = tree_from_postfix(t.post_order(), ops)
-    rt.show()
-
-    print("\nSympy expression from t:")
-    print(expr_from_postfix(t.post_order(), ops))
-    
-
-if __name__ == "__main__":
-    main()
-    ops: Dict[str, int] = {"+":2, 
-                           "-": 2,
-                           "*": 2,
-                           "/": 2,
-                           "pow": 2,
-                           "log": 1,
-                           "exp": 1,
-                           "sin": 1,
-                           "cos": 1}
-    vars = sp.symbols("x0:5")
-    C = sp.Symbol("C")
-    vlist = list(vars) + [C]
+    return set(filter(lambda t: isinstance(t, sp.Symbol), tree.post_order()))
