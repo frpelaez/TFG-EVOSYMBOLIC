@@ -163,7 +163,9 @@ def trees_from_postfix(
     return subtrees
 
 
-def expr_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> sp.Expr:
+def expr_from_postfix(
+    lst: List[sp.Symbol | str | float | str], operators: Dict[str, int]
+) -> sp.Expr:
     """
     This function reconstructs a syntactic expression from the postorder traversal of one of its representing binary trees
 
@@ -180,9 +182,9 @@ def expr_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> 
     if len(lst) == 1:
         if isinstance(lst[0], str):
             raise Exception(
-                "Singleton post-fix notations must be of type 'sp.Expr' or 'float"
+                "Singleton post-fix notations must be of type 'sp.Expr', 'int' or 'float"
             )
-        return lst[0]
+        return lst[0]  # type: ignore
 
     for elm in lst:
         if isinstance(elm, (sp.Expr, float, int)):
@@ -232,7 +234,7 @@ def expr_from_postfix(lst: List[sp.Symbol | str], operators: Dict[str, int]) -> 
 
 
 def exprs_from_postfix(
-    lst: List[sp.Symbol | str], operators: Dict[str, int]
+    lst: List[sp.Symbol | str | float], operators: Dict[str, int]
 ) -> List[sp.Expr]:
     """
     This function reconstructs the syntactic subexpressions from the postorder traversal of one of its representing binary trees

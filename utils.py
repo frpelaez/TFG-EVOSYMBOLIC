@@ -2,6 +2,8 @@ import heapq
 from random import shuffle
 from typing import Any, Callable, List, Optional, Tuple
 
+import numpy as np
+
 
 def Transpose(matrix: List[List[Any]]) -> List[List[Any]]:
     return list(map(list, zip(*matrix)))
@@ -33,34 +35,6 @@ def random_groups[T](items: List[T], group_size: int) -> List[Tuple[T, ...]]:
 def k_largest[T](
     items: List[T], k: int, key: Optional[Callable[[T], Any]] = None
 ) -> List[T]:
-    """
-    Returns the k largest elements from a list.
-
-    Args:
-        items: A list of elements to find the largest from.
-        k: The number of largest elements to return.
-        key: An optional function to extract a comparison value from each element.
-             Same as the key function in functions like sorted(), min(), max(), etc.
-
-    Returns:
-        A list containing the k largest elements from the input list.
-        The returned list is sorted in descending order.
-
-    Raises:
-        ValueError: If k is less than or equal to 0.
-        ValueError: If k is greater than the length of the input list.
-
-    Examples:
-        >>> k_largest([1, 5, 3, 9, 2, 6], 3)
-        [9, 6, 5]
-
-        >>> k_largest(['apple', 'banana', 'cherry', 'date', 'elderberry'], 2)
-        ['elderberry', 'date']
-
-        >>> k_largest(['apple', 'banana', 'cherry', 'date'], 2, key=len)
-        ['banana', 'cherry']
-    """
-    # Validate input parameters
     if k <= 0:
         raise ValueError("k must be greater than 0")
 
@@ -69,5 +43,15 @@ def k_largest[T](
             f"k ({k}) cannot be greater than the length of the input list ({len(items)})"
         )
 
-    # Use heapq.nlargest to efficiently find the k largest elements
     return heapq.nlargest(k, items, key=key)
+
+
+def calculate_deriv(data):
+    t, y = data
+    n = len(y)
+    y_prime = [None] * n
+    y_prime[0] = (y[1] - y[0]) / (t[1] - t[0])
+    for i in range(1, n - 1):
+        y_prime[i] = (y[i + 1] - y[i - 1]) / (t[i + 1] - t[i - 1])
+    y_prime[n - 1] = (y[n - 1] - y[n - 2]) / (t[n - 1] - t[n - 2])
+    return np.array(y_prime)

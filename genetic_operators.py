@@ -23,7 +23,7 @@ def new_tree(
     variable_rate: float = 0.75,
     constants_range: List[float | int] | Tuple[float | int, float | int] = [-1, 1],
 ) -> BT:
-    if depth == 0 or comp_depth == 0:
+    if depth == 0 or comp_depth == 0 or random() < terminal_rate:
         if random() < variable_rate:
             return BT(choice(vars))
         else:
@@ -48,19 +48,40 @@ def new_tree(
                     comp_depth=comp_depth - 1,
                     force_depth=True,
                     force_binary=True,
+                    terminal_rate=terminal_rate,
                 )
                 return BT(op, child)
             else:
                 if force_depth:
                     child1 = new_tree(
-                        operators, vars, depth - 1, comp_depth=comp_depth - 1
+                        operators,
+                        vars,
+                        depth - 1,
+                        comp_depth=comp_depth - 1,
+                        terminal_rate=terminal_rate,
                     )
                     child2 = new_tree(
-                        operators, vars, depth - 1, comp_depth=comp_depth - 1
+                        operators,
+                        vars,
+                        depth - 1,
+                        comp_depth=comp_depth - 1,
+                        terminal_rate=terminal_rate,
                     )
                 else:
-                    child1 = new_tree(operators, vars, depth - 1, comp_depth=comp_depth)
-                    child2 = new_tree(operators, vars, depth - 1, comp_depth=comp_depth)
+                    child1 = new_tree(
+                        operators,
+                        vars,
+                        depth - 1,
+                        comp_depth=comp_depth,
+                        terminal_rate=terminal_rate,
+                    )
+                    child2 = new_tree(
+                        operators,
+                        vars,
+                        depth - 1,
+                        comp_depth=comp_depth,
+                        terminal_rate=terminal_rate,
+                    )
                 return BT(op, child1, child2)
 
 
@@ -133,7 +154,8 @@ def generate_tree_population(
     max_depth: int,
     population_size: int,
     *,
-    constants_range: List[float | int] | Tuple[float | int, float | int] = [-1, 1],
+    constants_range: List[float | int] | Tuple[float | int, float | int] = [-1.0, 1.0],
+    comp_depth: int = 2,
 ) -> List[BT]:
     """
     This function generates a population of random syntactic binary trees
@@ -149,7 +171,13 @@ def generate_tree_population(
         List[BT]
     """
     return [
-        new_tree(operators, vars, max_depth, constants_range=constants_range)
+        new_tree(
+            operators,
+            vars,
+            max_depth,
+            constants_range=constants_range,
+            comp_depth=comp_depth,
+        )
         for _ in range(population_size)
     ]
 
@@ -162,12 +190,18 @@ def new_population(
     data: Tuple[np.ndarray, np.ndarray],
     *,
     data_prime: Tuple | None = None,
+    comp_depth: int = 2,
     method: str = "mse",
     size_penalty: str = "none",
     constants_range: List[float | int] | Tuple[float | int, float | int] = [-1, 1],
 ) -> List[Individual]:
     trees = generate_tree_population(
-        operators, vars, max_depth, population_size, constants_range=constants_range
+        operators,
+        vars,
+        max_depth,
+        population_size,
+        constants_range=constants_range,
+        comp_depth=comp_depth,
     )
     return [
         Individual(
@@ -585,6 +619,7 @@ def get_next_population(
     data: Tuple[np.ndarray, np.ndarray],
     *,
     data_prime: Tuple | None = None,
+    alpha: float = 1.0,
     fitness_method: str = "mse",
     size_penalty: str = "none",
     crossover_method: str = "normal",
@@ -671,6 +706,7 @@ def get_next_population(
                             fitness_method,
                             size_penalty,
                             data_prime=data_prime,
+                            alpha=alpha,
                         ),
                     ),
                     Individual(
@@ -683,6 +719,7 @@ def get_next_population(
                             fitness_method,
                             size_penalty,
                             data_prime=data_prime,
+                            alpha=alpha,
                         ),
                     ),
                 ]
@@ -699,6 +736,7 @@ def get_next_population(
                         fitness_method,
                         size_penalty,
                         data_prime=data_prime,
+                        alpha=alpha,
                     ),
                 )
             )
@@ -730,31 +768,3 @@ def get_next_population(
             )
 
     return res
-
-
-def main() -> None:
-    ops: Dict[str, int] = {"+": 2, "-": 2, "*": 2, "/": 2, "sin": 1, "cos": 1, "exp": 1}
-
-    x = sp.Symbol("x")
-    vlist: List[sp.Symbol] = [x]
-
-    trees = []
-
-    for _ in range(10):
-        print("-----------------")
-        t = new_tree(ops, vlist, 4, comp_depth=2)
-        t.show()
-        trees.append(t)
-        print("-----------------")
-
-    print("\n\n")
-
-    for t in trees:
-        print("-----------------")
-        mut = mutation(t, vlist, ops, delete_mutation_rate=0.5)
-        mut.show()
-        print("-----------------")
-
-
-# if __name__ == "__main__":
-#     main()

@@ -17,7 +17,9 @@ def evosym(
     operators: Dict[str, int],
     *,
     data_prime: Tuple | None = None,
-    crossover_yields_twot_children: bool = False,
+    alpha: float = 1.0,
+    comp_depth: int = 2,
+    crossover_yields_two_children: bool = False,
     crossover_method: str = "normal",
     meancrossover_rate: float = 0.5,
     mutation_rate: float = 0.1,
@@ -31,12 +33,41 @@ def evosym(
 ) -> Tuple[
     Individual, float, float, List[float], List[float], List[float], Dict[str, Any]
 ]:
+    """
+    Executes the genetic algorithm to fit the given data using the modifications
+    indicated by keyword parameters.
+
+    Args:
+        data (Tuple[np.ndarray, np.ndarray]): data to fit
+        population_size (int): size of the population (remains constant)
+        generations (int): number of generations
+        vars (List[Symbol]): list of symbolic variables to be used
+        operators (Dict[str, int]): dictionary with keys representing the operators and functions to be used and values being the arity of the keys
+        data_prime (Tuple | None, optional): derivative-related data. Must match the shape of 'data'. Defaults to None.
+        alpha (float, optional): represents 1 - the weight of the derivative in the fitness function. Defaults to 1.0.
+        comp_depth (int, optional): controls the composition depth of the first generation. Defaults to 2.
+        crossover_yields_two_children (bool, optional): Defaults to False.
+        crossover_method (str, optional): choose crossover method (currently supports 'normal' and 'sizefair'). Defaults to 'normal'.
+        meancrossover_rate (float, optional): propapility that a mean crossover happens. Defaults to 0.5.
+        mutation_rate (float, optional): mutation probability. Defaults to 0.1.
+        delete_mutation_rate (float, optional): 'deleting' variant of mutation probability. Defaults to 0.0.
+        divine_mutation_rate (float, optional): 'divine' variant of mutation probability. Defaults to 0.1.
+        mutation_method (str, optional): choose mutation method (currently supports 'nodal', 'complete' and 'shrinking'). Defaults to "nodal".
+        fitness_method (str, optional): fitness function to be used (currently supports 'ade', 'mde', 'ase' and 'mse'). Defaults to "mde".
+        constants_range (List[float  |  int] | Tuple[float  |  int, float  |  int], optional): range for constants. Defaults to [-1, 1].
+        selection_method (str, optional): choose the selection method (currently supports 'elitism', 'roulette' and 'tournament'). Defaults to "tournament".
+        size_penalty (str, optional): penalty functions to be applied (currently supports 'linear', 'cuad', 'log', 'sqrt' and 'none'). Defaults to "linear".
+
+    Returns:
+        Tuple[ Individual, float, float, List[float], List[float], List[float], Dict[str, Any] ]: first return value is the actual best solution found. Followed by its fitness score and other metrics
+    """
     population = new_population(
         operators,
         vars,
-        3,
+        4,
         population_size,
         data,
+        comp_depth=comp_depth,
         method=fitness_method,
         size_penalty=size_penalty,
         constants_range=constants_range,
@@ -44,6 +75,7 @@ def evosym(
     )
 
     initial_fitnesses = [ind.fitness for ind in population]
+    best_gen = 0
     best_ind = Individual(BT(), float("inf"))
     best_fitness = float("inf")
     worst_fitness = float("-inf")
@@ -58,7 +90,7 @@ def evosym(
     bar = ChargingBar("Run progress:", max=generations)
     bar.next()
 
-    for _ in range(1, generations):
+    for i in range(1, generations):
         population = get_next_population(
             population,
             operators,
@@ -67,7 +99,7 @@ def evosym(
             fitness_method=fitness_method,
             size_penalty=size_penalty,
             crossover_method=crossover_method,
-            yield_two_children=crossover_yields_twot_children,
+            yield_two_children=crossover_yields_two_children,
             meancrossover_rate=meancrossover_rate,
             mutation_rate=mutation_rate,
             divine_mutation_rate=divine_mutation_rate,
@@ -76,6 +108,7 @@ def evosym(
             constants_range=constants_range,
             selection_method=selection_method,
             data_prime=data_prime,
+            alpha=alpha,
         )
 
         best_gen_ind = min(population, key=lambda i: i.fitness)
@@ -83,6 +116,7 @@ def evosym(
         if best_gen_ind.fitness < best_fitness:
             best_fitness = best_gen_ind.fitness
             best_ind = best_gen_ind
+            best_gen = i
         if worst_gen_ind.fitness > worst_fitness:
             worst_fitness = worst_gen_ind.fitness
 
@@ -103,6 +137,7 @@ def evosym(
     extra_data = {
         "gens_best_size": geenrations_best_size,
         "gens_mean_size": geenrations_mean_size,
+        "best_gen": best_gen,
     }
 
     return (

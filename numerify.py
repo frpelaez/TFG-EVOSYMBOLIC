@@ -42,6 +42,7 @@ def fitness(
     size_penalty: str = "linear",
     *,
     data_prime: Tuple | None = None,
+    alpha: float = 1.0,
 ) -> float:
     """
     Given a binary tree, calculates the fitness of the tree with respect to the data.
@@ -50,7 +51,6 @@ def fitness(
     x, y = data
     y_pred = func(x)
     res: float = 0.0
-
     match method:
         case "ade":
             res = np.sum(np.abs(y - y_pred))
@@ -69,38 +69,41 @@ def fitness(
         )
         x, y_prime = data_prime
         y_prime_predict = deriv(x)
+        deriv_res: float = 0.0
         match method:
             case "ade":
-                res += np.sum(np.abs(y_prime - y_prime_predict))
+                deriv_res = np.sum(np.abs(y_prime - y_prime_predict))
             case "mde":
-                res += np.mean(np.abs(y_prime - y_prime_predict))
+                deriv_res = np.mean(np.abs(y_prime - y_prime_predict))
             case "ase":
-                res += np.sum((y_prime - y_prime_predict) ** 2)
+                deriv_res = np.sum((y_prime - y_prime_predict) ** 2)
             case "mse":
-                res += np.mean((y_prime - y_prime_predict) ** 2)
+                deriv_res = np.mean((y_prime - y_prime_predict) ** 2)
             case _:
                 raise ValueError(f"Unknown fitness evaluation method: '{method}'")
 
-        res /= 2
+        res = alpha * res + (1 - alpha) * deriv_res
 
     tree_size: int = tree.size()
     sample_size: int = x.size
-
+    penalty = 0.0
     match size_penalty:
         case "linear":
-            res += tree_size / sample_size
+            penalty = tree_size / sample_size
         case "cuad":
-            res += tree_size * tree_size / sample_size
+            penalty = tree_size * tree_size / sample_size
         case "sqrt":
-            res += np.sqrt(tree_size) / sample_size
+            penalty = np.sqrt(tree_size) / sample_size
         case "log":
-            res += np.log2(tree_size) / sample_size
+            penalty = np.log2(tree_size) / sample_size
+        case "none":
+            pass
         case _:
             raise ValueError(
                 "Avalible size penalties are 'linear', 'cuad', 'sqrt' and 'log'"
             )
 
-    return res
+    return res * (1 + penalty)
 
 
 def numerify_population(
