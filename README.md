@@ -27,8 +27,8 @@ constantes = [-5.0, 5.5]
 # Realizamos una ejecución del algoritmo genético
 solucion, _ = evosym(
 	datos,
-	50,        # Tamaño de la población
-	100,       # Número de generaciones
+	50,             # Tamaño de la población
+	100,       	# Número de generaciones
 	variables,
 	operadores,
 	constants_range=constantes
@@ -66,18 +66,18 @@ constantes = [-5.0, 5.5]
 # Realizamos una ejecución del algoritmo genético
 solucion, _ = evosym(
 	datos,
-	50,                           # Tamaño de la población
-	100,                          # Número de generaciones
+	50,                             # Tamaño de la población
+	100,                          	# Número de generaciones
 	variables,
 	operadores,
 	constants_range=constantes
-	data_prime=datos_deriv,       # Datos de la derivada
-	alpha=0.8,                    # Damos un 20% de peso a la derivada
-	mutation_method="nodal",      # Elegimos la mutación "nodal"   
-	mutation_rate=0.05,           # Probabilidad de mutación del 5%
-	fitness_method="mse",         # Función de fitness
-	selection_method="torunament",# Selección por torneo binario
-	size_penalty="log"            # Penalización de tamaño logarítmica
+	data_prime=datos_deriv,      	# Datos de la derivada
+	alpha=0.8,                    	# Damos un 20% de peso a la derivada
+	mutation_method="nodal",      	# Elegimos la mutación "nodal"   
+	mutation_rate=0.05,           	# Probabilidad de mutación del 5%
+	fitness_method="mse",         	# Función de fitness
+	selection_method="torunament",	# Selección por torneo binario
+	size_penalty="log"            	# Penalización de tamaño logarítmica
 )
 
 # Mostramos la expresión encontrada
