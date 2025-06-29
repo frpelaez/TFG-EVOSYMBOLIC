@@ -1,0 +1,11 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: tfg-evosymbolic
+message: Código del proyecto del TFG UCM Matemáticas
+type: software
+authors:
+  - email: frpelaez@ucm.es
+    affiliation: Facultad de Matemáticas UCM
+    given-names: Francisco Peláez
